@@ -1,130 +1,117 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
   View,
+  Text,
+  TextInput,
+  FlatList,
+  StyleSheet,
+  ActivityIndicator,
+  SafeAreaView,
 } from 'react-native';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
-
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
-
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
+interface Result {
+  key: string;
+  size: number;
+  uploaded: string;
+  url?: string;
 }
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+const App: React.FC = () => {
+  const [query, setQuery] = useState<string>('');
+  const [results, setResults] = useState<Result[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+  const fetchResults = async (searchTerm: string): Promise<void> => {
+    if (!searchTerm) {
+      setResults([]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`https://fileupload.rick-and-friends.site/search?keyword=${encodeURIComponent(searchTerm)}`);
+      const data = await response.json();
+      const result: Result[] = data.results.map((doc: any) => ({
+        key: doc.key,
+        title: doc.title,
+        author_name: doc.author_name,
+      }));
+      setResults(result);
+    } catch (error) {
+      console.error('Fetch error:', error);
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  /*
-   * To keep the template simple and small we're adding padding to prevent view
-   * from rendering under the System UI.
-   * For bigger apps the recommendation is to use `react-native-safe-area-context`:
-   * https://github.com/AppAndFlow/react-native-safe-area-context
-   *
-   * You can read more about it here:
-   * https://github.com/react-native-community/discussions-and-proposals/discussions/827
-   */
-  const safePadding = '5%';
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      fetchResults(query);
+    }, 500);
 
-  return (
-    <View style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        style={backgroundStyle}>
-        <View style={{paddingRight: safePadding}}>
-          <Header/>
-        </View>
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-            paddingHorizontal: safePadding,
-            paddingBottom: safePadding,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
+    return () => clearTimeout(debounce);
+  }, [query]);
+
+  const renderItem = ({ item }: { item: Result }) => (
+    <View style={styles.item}>
+      <Text style={styles.title}>{item.key}</Text>
     </View>
   );
-}
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <TextInput
+        style={styles.searchInput}
+        value={query}
+        onChangeText={setQuery}
+      />
+
+      {loading ? (
+        <ActivityIndicator size="large" color="#0000ff" style={{ marginTop: 20 }} />
+      ) : (
+        <FlatList
+          data={results}
+          keyExtractor={(item, index) => `${item.key}_${index}`}
+          renderItem={renderItem}
+          contentContainerStyle={{ paddingBottom: 20 }}
+        />
+      )}
+    </SafeAreaView>
+  );
+};
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  container: {
+    flex: 1,
+    paddingTop: 60,
+    paddingHorizontal: 16,
+    backgroundColor: '#f5f5f5',
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
+  searchInput: {
+    height: 50,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    borderColor: '#ccc',
+    borderWidth: 1,
   },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
+  item: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    marginTop: 10,
+    borderColor: '#ddd',
+    borderWidth: 1,
   },
-  highlight: {
-    fontWeight: '700',
+  title: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  author: {
+    marginTop: 4,
+    color: '#666',
   },
 });
 
